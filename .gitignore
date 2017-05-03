@@ -31,3 +31,10 @@
 # Debug files
 *.dSYM/
 *.su
+
+# other stuff
+vadc/
+virtual/
+__pycache__/
+scratch/
+
