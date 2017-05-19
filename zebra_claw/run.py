@@ -30,7 +30,8 @@ def init():
     _parse_args()
 
     if os.path.exists(paths.virtual_mount_point):
-        l(ll.fatal, "unable to create mount point, directory '%s' already exists\n" \
+        l(ll.fatal, \
+                "unable to create mount point, directory '%s' already exists\n" \
                 % paths.virtual_mount_point)
         quit()
 
@@ -53,7 +54,6 @@ def init():
     vadc_thread.join()
 
     #clean up
-    l(ll.info, "shutting down\n")
     l(ll.info, "removing virtual mount points\n")
     shutil.rmtree(paths.virtual_mount_point)
     log.shutdown()
