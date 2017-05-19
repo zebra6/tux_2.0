@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import datetime     #for current date and time
-import enum         #bitwise flags
 import os           #getpid()
 import paths        #global paths
 import queue        #for sequencing output messages
@@ -28,13 +27,6 @@ class fg_colors:
     white = "\x1b[37m"
     reset = "\x1b[0m"
 
-#logging options
-class log_output(enum.Flag):
-    none = enum.auto()
-    console = enum.auto()
-    new_file = enum.auto()
-    ovr_file = enum.auto()
-
 #globals
 g_proc_name = "unknown"
 g_log_name = None
@@ -50,6 +42,7 @@ def init(proc_name):
     global g_log_name
     global g_log_fobj
     count = 0
+    today = datetime.date.today()
 
     g_log_name = paths.logfile_directory + "/" + proc_name + paths.logfile_extenstion + str(count)
     g_proc_name = proc_name
@@ -62,16 +55,25 @@ def init(proc_name):
     #make sure the logging directory exists
     if os.path.exists(paths.logfile_directory) != True:
         os.mkdir(paths.logfile_directory)
-    
+
+    g_log_name += ("_" + str(today))
+
     while os.path.isfile(g_log_name) == True:
         count += 1
-        g_log_name = paths.logfile_directory + "/" + proc_name + paths.logfile_extenstion + str(count)
+        g_log_name = paths.logfile_directory + \
+                "/" + \
+                proc_name + \
+                paths.logfile_extenstion + \
+                str(count) + \
+                "_" + \
+                str(today)
 
     print("logger: opening log file %s write/append" % g_log_name)
     g_log_fobj = open(g_log_name, "a")
     g_log_fobj.close()
 
     print("logger: started ok, switching to logged mode")
+    l(ll.system, "logger: system date and time at start: %s\n" % str(datetime.datetime.now()))
 
 
 ###############################################################################
@@ -160,7 +162,7 @@ def g(*args):
 
     #write out to disk the input we got, append a new line since it is stripped automatically
     g_lock.acquire()
-    __write_to_file(to_return + "\n")
+    __write_to_file(to_return + "\n", False)
     g_lock.release()
 
     #give the called what we got from the terminal
@@ -241,16 +243,23 @@ def __create_prefix(log_level):
 ###############################################################################
 # write a given string to our logifle
 ###############################################################################
-def __write_to_file(string):
+def __write_to_file(string, show_time = True):
     global g_log_name
     global g_log_fobj
+    now = datetime.datetime.now()
+    str2 = str(now) + " "
 
     #remove the escape characters before we write to a file
-    ansi_escape = re.compile(r'\x1b[^m]*m')
-    string = ansi_escape.sub('', string)
+    ansi_escape = re.compile(r"\x1b[^m]*m")
+    string = ansi_escape.sub("", string)
 
     #write it to the file
     g_log_fobj = open(g_log_name, "a")
+
+    #sometimes we don't want the get (g())
+    if show_time == True:
+        g_log_fobj.write(str2)
+    
     g_log_fobj.write(string)
     g_log_fobj.close()
 
