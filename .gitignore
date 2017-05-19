@@ -33,6 +33,7 @@
 *.su
 
 # other stuff
+logs/
 vadc/
 virtual/
 __pycache__/
