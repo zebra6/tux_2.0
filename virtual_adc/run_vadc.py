@@ -4,15 +4,15 @@ import sys              #set up custom paths
 sys.path.append("../util")
 
 import argparse         #argument parsing
-import log              #logger
+import p_log            #logger
 import os.path          #for file creation
 import paths            #global paths
 import shutil           #walk a directory and delete its contents
 import threading        #for vadc thread
 import vadc_t           #vadc for running vlcs
-from log import g       #shorter logging commands
-from log import l       #   "
-from log import ll      #   "
+from p_log import g     #shorter logging commands
+from p_log import l     #   "
+from p_log import ll    #   "
 
 ###############################################################################
 # module entry point
@@ -24,7 +24,7 @@ def init():
     vadc_thread = None
 
     #set up the logger first thing
-    log.init(os.path.basename(__file__))
+    p_log.init(os.path.basename(__file__))
 
     #parse args and override any defaults
     _parse_args()
@@ -56,7 +56,7 @@ def init():
     #clean up
     l(ll.info, "removing virtual mount points\n")
     shutil.rmtree(paths.virtual_mount_point)
-    log.shutdown()
+    p_log.shutdown()
 
     print("done")
 

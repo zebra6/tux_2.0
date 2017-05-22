@@ -2,16 +2,16 @@
 import sys          #set up custom paths
 sys.path.append("../util")
 
-import argparse         #argument parsing
-import enum             #enumeration types
-import log              #logger
-import paths            #global paths
-import queue            #for sending messages to/from the object
-import time             #sleep
-import vlc_t            #virtual load cell
-from log import l       #shorter logging commands
-from log import l_raw   #shorter logging commands
-from log import ll      #   "
+import argparse             #argument parsing
+import enum                 #enumeration types
+import p_log                #process logger
+import paths                #global paths
+import queue                #for sending messages to/from the object
+import time                 #sleep
+import vlc_t                #virtual load cell
+from p_log import l         #shorter logging commands
+from p_log import l_raw     #   "
+from p_log import ll        #   "
 
 ###############################################################################
 # message types to send

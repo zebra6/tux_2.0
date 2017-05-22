@@ -36,4 +36,5 @@
 logs/
 vadc/
 virtual/
+__pycache__/
 *.psl
