@@ -14,19 +14,19 @@ from log import l               #   "
 from log import ll              #   "
 
 NUM_LOAD_CELLS = 4
-current_raw_file = ''
-sampling_period = None
-latest_timestamp = 0
-iterations = 0
-kill_thread = False
+g_current_raw_file = ''
+g_sampling_period = None
+g_latest_timestamp = 0
+g_iterations = 0
+g_kill_thread = False
 
 ###############################################################################
 # Update the global timestamp variable
 ###############################################################################
 def update_timestamp():
-    global latest_timestamp
+    global g_latest_timestamp
 
-    latest_timestamp = int(time.time())
+    g_latest_timestamp = int(time.time())
 
 
 ###############################################################################
@@ -42,7 +42,8 @@ def threaded_function():
 # sample rate
 ###############################################################################
 def init():
-    global kill_thread
+    global g_kill_thread
+    global g_sampling_period
       
     #set up the logger first thing
     log.init(os.path.basename(__file__))
@@ -64,60 +65,66 @@ def init():
     thread.start()
     
     try:
-        _repeat(sampling_period, read_load_cells, (1/sampling_period))
+        _repeat(g_sampling_period, read_load_cells, (1/g_sampling_period))
     except KeyboardInterrupt:
         l(ll.info, "Process killed with keyboard interrupt\n")
-        kill_thread = True
+        g_kill_thread = True
 
 ###############################################################################
 # Create new file 
 ###############################################################################
 def new_raw_file():
-    global current_raw_file
-    current_raw_file = paths.datalog_directory  \
+    global g_current_raw_file
+
+    g_current_raw_file = paths.datalog_directory  \
                         + "/" + "4_" \
                         + datetime.now().strftime("%Y%m%d_%H%M%S") \
                         + ".psl"
-    l(ll.info, "creating new raw log file %s\n" % current_raw_file)
+    l(ll.info, "creating new raw log file %s\n" % g_current_raw_file)
 
 ###############################################################################
 # Read from the LBCs through the ADC file descriptors
 ###############################################################################
 def read_load_cells(*args):
-    global iterations
+    global g_iterations
+    global g_latest_timestamp
+    global g_current_raw_file
+    global g_kill_thread
 
-    sd = open( current_raw_file, "a" )
+    sd = open( g_current_raw_file, "a" )
     
     # Iterate through each LBC and sample
-    for i in range(0, NUM_LOAD_CELLS ):
-        f = open( paths.virtual_mount_point + '/' + paths.vlc_basename \
-                + str(i), "r" )
 
-        if i != (NUM_LOAD_CELLS - 1):
-            sd.write ( "%s, " % (f.readline()).rstrip() )
-        else:
-            sd.write ( "%s\n" % (f.readline()).rstrip() )
-        f.close( )
-    
-    iterations += 1
+    try:
+        for i in range(0, NUM_LOAD_CELLS ):
+            f = open( paths.virtual_mount_point + '/' + paths.vlc_basename \
+                    + str(i), "r" )
+
+            if i != (NUM_LOAD_CELLS - 1):
+                sd.write ( "%s, " % (f.readline()).rstrip() )
+            else:
+                sd.write ( "%s\n" % (f.readline()).rstrip() )
+            f.close( )
+    except FileNotFoundError:
+        l(ll.fatal, "Virtual ADCs are not running. Exiting\n")
+        g_kill_thread = True
+        quit()
+    g_iterations += 1
 
     # Iterations counts the number of reads in between timestamps
     # (Should be every 1 second)
-    if iterations == args[0]:
-        sd.write( "%s\n" % str(latest_timestamp) )
-        iterations = 0
+    if g_iterations == args[0]:
+        sd.write( "%s\n" % str(g_latest_timestamp) )
+        g_iterations = 0
     
     sd.close()
 
 ###############################################################################
 ###############################################################################
 def _parse_args():
-    global sampling_period	
+    global g_sampling_period	
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose",
-        help = "increase output verbosity level",
-        action = "store_true")
 
     parser.add_argument("-p", "--period",
         help = "define ADC sampling period in seconds (float)",
@@ -128,11 +135,8 @@ def _parse_args():
 
     args = parser.parse_args()
 
-    if args.verbose:
-        print("verbosity turned on")
-
     if args.period:
-        sampling_period = args.period
+        g_sampling_period = args.period
 
     return args
 
@@ -140,7 +144,7 @@ def _parse_args():
 # Use to register a periodic function
 ###############################################################################
 def _repeat(period, f, *args):
-    global kill_thread
+    global g_kill_thread
 
     def g_tick():
         t = time.time()
@@ -149,7 +153,7 @@ def _repeat(period, f, *args):
             count += 1
             yield max(t + count*period - time.time(),0)
     g = g_tick()
-    while not kill_thread:
+    while not g_kill_thread:
         time.sleep(next(g))
         f(*args)
 
