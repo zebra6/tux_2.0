@@ -221,7 +221,7 @@ def __get_message_string(log_level):
 ###############################################################################
 def __create_prefix(log_level):
     new_message = __set_format(log_level)
-    
+
     new_message += ( \
             "[" + \
             g_proc_name + \
@@ -236,7 +236,7 @@ def __create_prefix(log_level):
             "] ")
 
     new_message += __set_format(ll.reset)
-    
+
     return new_message
 
 
@@ -259,7 +259,7 @@ def __write_to_file(string, show_time = True):
     #sometimes we don't want the get (g())
     if show_time == True:
         g_log_fobj.write(str2)
-    
+
     g_log_fobj.write(string)
     g_log_fobj.close()
 

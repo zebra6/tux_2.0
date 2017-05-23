@@ -1,161 +1,190 @@
 #!/usr/bin/env python3
-import time                     #for timestamps
-import argparse                 #argument parsing
-import threading                #for timestamp thread
-from datetime import datetime   #for calendar date
-import os.path                  #for file creation
-import sys                      #set up custom paths
+import sys                  #set up custom paths
 sys.path.append("../util")
 
-import p_log                    #logger
-import paths                    #global paths
-from p_log import g             #shorter logging commands
-from p_log import l             #   "
-from p_log import ll            #   "
+import argparse             #argument parsing
+import datetime             #for calendar date
+import os.path              #for file creation
+import p_log                #logger
+import paths                #global paths
+import threading            #for timestamp thread
+import time                 #for timestamps
+
+from p_log import g         #shorter logging commands
+from p_log import l         #   "
+from p_log import ll        #   "
 
 NUM_LOAD_CELLS = 4
-g_current_raw_file = ''
-g_sampling_period = None
-g_latest_timestamp = 0
-g_iterations = 0
-g_kill_thread = False
+DEFAULT_SAMPLE_PERIOD = 0.5
+NO_DATA_STR = "[no_data_read]"
 
-###############################################################################
-# Update the global timestamp variable
-###############################################################################
-def update_timestamp():
-    global g_latest_timestamp
-
-    g_latest_timestamp = int(time.time())
-
-
-###############################################################################
-# Call this function in another thread to periodically update the timestamp
-# (Prevents the logger from making the actual time call)
-###############################################################################
-def threaded_function():
-    _repeat(.1, update_timestamp, )
-
+g_current_raw_file = None
+g_sample_period = DEFAULT_SAMPLE_PERIOD
+g_done = False
+g_done_lock = threading.Lock()
 
 ###############################################################################
 # Create the timestamp thread and register the read LBC function at the given
 # sample rate
 ###############################################################################
 def init():
-    global g_kill_thread
-    global g_sampling_period
-      
+    global g_sample_period
+    thread_lcs = None
+
     #set up the logger first thing
     p_log.init(os.path.basename(__file__))
 
-    # parse args 
-    args = _parse_args()
+    # parse args
+    args = __parse_args()
 
-    # create datalog directory if it doesn't exist
+    # create datalog directory if it doesn't exist TODO nested paths
     if not os.path.exists(paths.datalog_directory):
-        l(ll.info, "creating datalog directory\n")
+        l(ll.info, "creating data_log directory\n")
         os.mkdir(paths.datalog_directory)
 
     # create new raw file w/ current date
-    new_raw_file()
-    
-    # Create new thread to monitor UTC time
-    l(ll.info, "starting timestamp thread\n")
-    thread = threading.Thread(target = threaded_function,)
-    thread.start()
-    
-    try:
-        _repeat(g_sampling_period, read_load_cells, (1/g_sampling_period))
-    except KeyboardInterrupt:
-        l(ll.info, "Process killed with keyboard interrupt\n")
-        g_kill_thread = True
+    __new_raw_file()
+
+    thread_lcs = threading.Thread(target = __thread_read_lcs, \
+            name = "read_lc", \
+            kwargs = {"sample_period": g_sample_period})
+
+    #kick off the accessory thread
+    thread_lcs.start()
+
+    #main loop
+    __run()
+
+    #wait for the timestamp thread to finish
+    thread_lcs.join()
+
 
 ###############################################################################
-# Create new file 
+# actually start doing something
 ###############################################################################
-def new_raw_file():
+def __run():
+    global g_done
+    done = False
+
+    l(ll.info, "starting execution, press \"q\" or \"x\" to exit\n")
+
+    while done != True:
+        tmp = g("$ ")
+
+        if tmp == "q" or tmp == "x":
+            g_done_lock.acquire()
+            g_done = done = True
+            g_done_lock.release()
+        else:
+            l(ll.warn, "unknown command \"%s\"\n" % tmp)
+
+
+###############################################################################
+# Create new file
+###############################################################################
+def __new_raw_file():
     global g_current_raw_file
 
-    g_current_raw_file = paths.datalog_directory  \
-                        + "/" + "4_" \
-                        + datetime.now().strftime("%Y%m%d_%H%M%S") \
-                        + ".psl"
+    g_current_raw_file = paths.datalog_directory + \
+            "/" + \
+            "data_log_" + \
+            "[scale_id]_" + \
+            str(datetime.datetime.now()) + \
+            ".psl"
+
+    #get rid of any spaces
+    g_current_raw_file = g_current_raw_file.replace(" ", "_")
     l(ll.info, "creating new raw log file %s\n" % g_current_raw_file)
+
 
 ###############################################################################
 # Read from the LBCs through the ADC file descriptors
 ###############################################################################
-def read_load_cells(*args):
-    global g_iterations
-    global g_latest_timestamp
+def __thread_read_lcs(sample_period):
     global g_current_raw_file
-    global g_kill_thread
+    global g_done
+    done = False
+    count = 0
+    backup = sample_period
+    latest_timestamp = None
 
-    sd = open( g_current_raw_file, "a" )
-    
-    # Iterate through each LBC and sample
+    l(ll.info, "read_lc: starting with sample period of %lf seconds\n" % sample_period)
 
-    try:
-        for i in range(0, NUM_LOAD_CELLS ):
-            f = open( paths.virtual_mount_point + '/' + paths.vlc_basename \
-                    + str(i), "r" )
+    #TODO mutex
+    while done != True:
 
-            if i != (NUM_LOAD_CELLS - 1):
-                sd.write ( "%s, " % (f.readline()).rstrip() )
-            else:
-                sd.write ( "%s\n" % (f.readline()).rstrip() )
-            f.close( )
-    except FileNotFoundError:
-        l(ll.fatal, "Virtual ADCs are not running. Exiting\n")
-        g_kill_thread = True
-        quit()
-    g_iterations += 1
+        g_done_lock.acquire()
+        done = g_done
+        g_done_lock.release()
 
-    # Iterations counts the number of reads in between timestamps
-    # (Should be every 1 second)
-    if g_iterations == args[0]:
-        sd.write( "%s\n" % str(g_latest_timestamp) )
-        g_iterations = 0
-    
-    sd.close()
+        #update the timestamp
+        latest_timestamp = str(datetime.datetime.now())
+
+        fobj = open(g_current_raw_file, "a")
+
+        # Iterate through each LBC and sample
+        try:
+            if count == 0:
+                fobj.write("time: %s, " % latest_timestamp)
+                fobj.write("sample_num: %u, " % count)
+                fobj.write("starting with sample period %lf\n\n" % sample_period)
+
+            for i in range(0, NUM_LOAD_CELLS):
+                vlc = open(paths.virtual_mount_point + \
+                        '/' \
+                        + paths.vlc_basename \
+                        + str(i), \
+                        "r" )
+
+                line = (vlc.readline()).rstrip()
+                vlc.close()
+
+                if line == "":
+                    line = NO_DATA_STR
+
+                #write the timestamp and data
+                fobj.write("time: %s, " % latest_timestamp)
+                fobj.write("sample_num: %u, " % count)
+                fobj.write("cell %i: %10s\n" % (i, line))
+
+                #handle end of line
+                if i == (NUM_LOAD_CELLS - 1):
+                    fobj.write("\n")
+
+                #we may have come in from an unmounted state, so always set this
+                sample_period = backup
+
+        except FileNotFoundError:
+            l(ll.fatal, "vadcs unmounted, sleeping five seconds (%s)\n" % latest_timestamp)
+            sample_period = 5.0
+
+        count += 1
+        fobj.close()
+        time.sleep(sample_period)
+
 
 ###############################################################################
+# parse any arguments we have
 ###############################################################################
-def _parse_args():
-    global g_sampling_period	
+def __parse_args():
+    global g_sample_period
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-p", "--period",
-        help = "define ADC sampling period in seconds (float)",
+        help = "define sample periodicity in seconds (float)",
         action = "store",
-        default = 0.1,
+        default = DEFAULT_SAMPLE_PERIOD,
         metavar='',
         type = float)
 
     args = parser.parse_args()
 
     if args.period:
-        g_sampling_period = args.period
+        g_sample_period = args.period
 
     return args
 
-###############################################################################
-# Use to register a periodic function
-###############################################################################
-def _repeat(period, f, *args):
-    global g_kill_thread
-
-    def g_tick():
-        t = time.time()
-        count = 0
-        while True:
-            count += 1
-            yield max(t + count*period - time.time(),0)
-    g = g_tick()
-    while not g_kill_thread:
-        time.sleep(next(g))
-        f(*args)
 
 ###############################################################################
 # standalone entry point
