@@ -1,0 +1,42 @@
+# RPi Ad-Hoc Network
+createAdHocNetwork(){
+echo "Creating ad-hoc network"
+sudo ifconfig wlan0 down
+sudo iwconfig wlan0 mode ad-hoc
+sudo iwconfig wlan0 essid Scales
+sudo ifconfig wlan0 192.168.173.4 netmask 255.255.255.0 up
+echo "Ad-hoc network created"
+echo "The server ip is 192.168.173.4"
+}
+
+wpa_cli terminate > /dev/null 2>&1
+sleep 1
+echo "Scanning for known WiFi networks"
+connected=false
+for i in 1 # Initially was for i in 1 2 3 but found it took too long to failover to adhoc
+do
+if connected=false
+then
+echo "Starting supplicant for WPA/WPA2"
+sudo wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf > /dev/null 2>&1
+sleep 1
+echo "Checking connection"
+if ! iwgetid | grep "ESSID:\"\""  > /dev/null
+then
+echo "Connected to WiFi"
+connected=true
+echo "My IP address is:"
+hostname -I
+break
+else
+echo "wpa_supplicant has not made a connection"
+echo "Reverting back to Ad-Hoc Network"
+wpa_cli terminate > /dev/null
+createAdHocNetwork
+break
+fi
+else
+echo "No ssid’s listed in your wpa_supplicant.conf file were in range"
+fi
+done
+
