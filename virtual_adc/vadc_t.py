@@ -92,7 +92,7 @@ class vadc_t:
             #only update if we are running
             if self.is_running == True:
                 self.__tick()
-            
+
             time.sleep(1/100)
 
             #process all our messages

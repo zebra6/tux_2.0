@@ -28,4 +28,4 @@ class vlc_t:
 
     def print(self):
         print("|%s@%06u: %10.6f|   " % (self.name, self.num_ticks, self.current_val), end = '')
-        
+
