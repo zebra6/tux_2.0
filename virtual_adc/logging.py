@@ -5,6 +5,7 @@ import threading                #for timestamp thread
 from datetime import datetime   #for calendar date
 import os.path                  #for file creation
 import sys                      #set up custom paths
+import defines                  #defines for system
 sys.path.append("../util")
 
 import log                      #logger
@@ -13,7 +14,6 @@ from log import g               #shorter logging commands
 from log import l               #   "
 from log import ll              #   "
 
-NUM_LOAD_CELLS = 4
 g_current_raw_file = ''
 g_sampling_period = None
 g_latest_timestamp = 0
@@ -96,11 +96,11 @@ def read_load_cells(*args):
     # Iterate through each LBC and sample
 
     try:
-        for i in range(0, NUM_LOAD_CELLS ):
+        for i in range(0, defines.NUM_LOAD_CELLS ):
             f = open( paths.virtual_mount_point + '/' + paths.vlc_basename \
                     + str(i), "r" )
 
-            if i != (NUM_LOAD_CELLS - 1):
+            if i != (defines.NUM_LOAD_CELLS - 1):
                 sd.write ( "%s, " % (f.readline()).rstrip() )
             else:
                 sd.write ( "%s\n" % (f.readline()).rstrip() )
