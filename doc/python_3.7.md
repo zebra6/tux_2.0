@@ -17,9 +17,11 @@ git clone https://github.com/python/cpython.git
 cd cpython
 ```
 
-You will need to install the zlib1g library as well or the Python self-tests will fail:
+You will need to install a number of dependencies or the build will very, and it is very time consuming:
 ```
-sudo apt-get install zlib1g
+sudo apt-get update
+sudo apt-get dist-upgrade
+sudo apt-get install zlib1g zlib1g-dev build-essential libncursesw5-dev libgdbm-dev libc6-dev libssl-dev openssl libffi-dev
 ```
 
 Next you will need to set the configuration options.  We do not want to replace the existing system installed version of
@@ -27,7 +29,7 @@ Python 3, so we will specify an alternative installation directory; you may need
 system.
 
 ```
-./configure --enable-optimizations --prefix=/usr/local/python_latest --program-suffix=-3.7.0a
+./configure --enable-optimizations --prefix=/usr/local/bin/python_latest --program-suffix=-3.7.0a
 ```
 
 Now we build the source with the applied configuration.  This will take some time to complete:
@@ -44,17 +46,49 @@ sudo make altinstall -j`nproc`
 ## Verification
 To verify the new interpreter works as expected, run the following command.  You should get output similar to below:
 ```
-x@lunar:~$ /usr/local/python_latest/bin/python3.7 --version
+x@lunar:~$ /usr/local/bin/python_latest/bin/python3.7 --version
 Python 3.7.0a0
 
 ```
 
+## Setting up the module path
+By default, the new Python version will not be able to see modules and packages from the existing Python 3 installation.
+We will add them to the search path.  First, open up the system version of Python 3 and type the following:
+```
+x@lunar:~/p/tmp$ python3
+
+>>> import sys
+>>> print("%s" % sys.path)
+['', '/usr/lib/python3.4', '/usr/lib/python3.4/plat-arm-linux-gnueabihf', '/usr/lib/python3.4/lib-dynload', '/usr/local/lib/python3.4/dist-packages', '/usr/lib/python3/dist-packages']
+>>> 
+```
+
+Here we are interested in the last two paths, but you can add them all if you want.  Exit out of the system version of
+Python 3 and add the following to your `.bashrc` file:
+```
+export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.4/dist-packages:/usr/lib/python3/dist-packages
+```
+
+Then re-source your `.bashrc` file and check to make sure the paths were added:
+```
+x@lunar:~/p/tmp$ . ~/.bashrc 
+x@lunar:~/p/tmp$ p37
+Python 3.7.0a0 (heads/master:23ec4b5, Jun 14 2017, 18:26:33) 
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import sys
+>>> print("%s" % sys.path)
+['', '/home/x/p/tmp', '/usr/local/lib/python3.4/dist-packages', '/usr/lib/python3/dist-packages', '/usr/local/bin/python_latest/lib/python37.zip', '/usr/local/bin/python_latest/lib/python3.7', '/usr/local/bin/python_latest/lib/python3.7/lib-dynload', '/home/x/.local/lib/python3.7/site-packages', '/usr/local/bin/python_latest/lib/python3.7/site-packages']
+>>> import gpiozero
+>>> 
+x@lunar:~/p/tmp$ 
+```
 
 ## (Optional) Adding to .bashrc
 We will want to provide an alias so we can use the new interpreter without specifying the entire path every time.  To do
 this, we add an entry to our `.bashrc`:
 ```
-alias p37="/usr/local/python_latest/bin/python3.7"
+alias p37="/usr/local/bin/python_latest/bin/python3.7"
 ```
 
 Finally, re-source your `.bashrc` in any open terminal windows, or restart them for it to take effect:
