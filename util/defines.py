@@ -3,7 +3,7 @@ from enum import Enum
 
 # Load Cell Sample Rate
 SAMPLE_RATE_FREQ    = 20 
-SAMPLE_RATE_PER     = ( 1/SAMPLE_RATE_PER ) 
+SAMPLE_RATE_PER     = ( 1/SAMPLE_RATE_FREQ ) 
 
 # Number of Forces we're calculating (F, Fx, Fy)
 NUM_FORCES = 3
@@ -45,10 +45,10 @@ BACKUP_THRESHOLD = 32
 MIN_NUM_WEIGHS = 5
 
 # We need to determine LC position in scale
-load_cells = Enum('load_cells', 'LC_X1Y1 LC_X1Y2 LC_X2Y1 LC_X2Y2')
+cells = Enum('load_cells', 'LC_X1Y1 LC_X1Y2 LC_X2Y1 LC_X2Y2')
 
 # Hooray for State Machines! Various states of the scale
-scale_states = Enum('states', 'Calibrate Ready Preweigh Weigh Postweigh')
+states = Enum('states', 'Calibrate Ready Preweigh Weigh Postweigh')
 
 # Force enum
 forces = Enum('forces', 'F Fx Fy')

@@ -25,8 +25,8 @@ g_calculated_F = [0] * defines.NUM_FORCES
 g_position = [0] * defines.NUM_AXES
 
 g_state = defines.states.Calibrate
-g_done = false
-g_direction = defines.direction.to_sea
+g_done = False
+g_direction = defines.directions.to_sea
 g_furthest_x = 0
 g_weight_sum = 0
 g_weight_num = 0
@@ -51,7 +51,7 @@ def init():
     algorithm_thread.start()
 
     # calculate F0, Fx0, and Fy0
-    calculate_zero_force()
+    #calculate_zero_force()
 
     # keyboard interface (main loop)
     cli()
@@ -75,34 +75,34 @@ def calculate_zero_force():
     while not done:
 
         # Find total force ( Legacy Logic )
-        g_calibration_F[defines.forces.F] = \
-                            g_load_cells[defines.load_cells.LC_X1Y1] + \
-                            g_load_cells[defines.load_cells.LC_X1Y2] + \
-                            g_load_cells[defines.load_cells.LC_X2Y1] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2]
+        g_calibration_F[defines.forces.F.value] = \
+                            g_load_cells[defines.cells.LC_X1Y1.value] + \
+                            g_load_cells[defines.cells.LC_X1Y2.value] + \
+                            g_load_cells[defines.cells.LC_X2Y1.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value]
 
         # Find "force" along X - axis ( Legacy Logic )
-        g_calibration_F[defines.forces.Fx] = \
-                            g_load_cells[defines.load_cells.LC_X2Y1] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2]
+        g_calibration_F[defines.forces.Fx.value] = \
+                            g_load_cells[defines.cells.LC_X2Y1.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value]
 
         # Find "force" along Y - axis ( Legacy Logic )
-        g_calibration_F[defines.forces.Fy] = \
-                            g_load_cells[defines.load_cells.LC_X1Y2] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2]
+        g_calibration_F[defines.forces.Fy.value] = \
+                            g_load_cells[defines.cells.LC_X1Y2.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value]
 
         # Ensures that the load cells are being read
-        if not g_calibration_F[defines.forces.F] == 0:
+        if not g_calibration_F[defines.forces.F.value] == 0:
             done = True
 
         if retries == 3:
-            l(ll.fatal, "Invalid readings from the ADC (the platform weight
+            l(ll.fatal, "Invalid readings from the ADC (the platform weight \
                          can't be zero!) Exiting\n")
             g_done = True
             done = True
 
         # Want to have a failsafe if we have a infinite loop of some sort
-        retries++
+        retries+=1
         
         # if we haven't switched modes, sleep!
         if not done:
@@ -123,9 +123,9 @@ def calibrate():
         
         calculate_zero_force()
         
-        if g_calculated_F[defines.forces.F] > defines.ENTER_ZERO_THRESHOLD && \
-           g_calculated_F[defines.forces.Fx] > defines.ENTER_ZERO_THRESHOLD && \
-           g_calculated_F[defines.forces.Fy] > defines.ENTER_ZERO_THRESHOLD :
+        if g_calculated_F[defines.forces.F.value] > defines.ENTER_ZERO_THRESHOLD and \
+           g_calculated_F[defines.forces.Fx.value] > defines.ENTER_ZERO_THRESHOLD and \
+           g_calculated_F[defines.forces.Fy.value] > defines.ENTER_ZERO_THRESHOLD :
                g_state = defines.states.Ready
                done = True
 
@@ -135,7 +135,7 @@ def calibrate():
             done = True
 
         # Want to have a failsafe if we have a infinite loop of some sort
-        retries++
+        retries+=1
 
         # if we haven't switched modes, sleep!
         if not done:
@@ -154,26 +154,26 @@ def ready():
 
     while not done:
         # We're facing issues with the F0 (probably), let's try recalibrating
-        if g_calculated_F[defines.forces.F] < defines.EXIT_ZERO_THRESHOLD:
+        if g_calculated_F[defines.forces.F.value] < defines.EXIT_ZERO_THRESHOLD:
             g_state = defines.states.Calibrate
             done = True
 
         # Already weight on the middle of the scale? Then go back to calibrating
-        elif g_position[defines.axes.X] >= defines.X_THRESHOLD_LOW && \
-             g_position[defines.axes.X] <= defines.X_THRESHOLD_HIGH:
+        elif g_position[defines.axes.X.value] >= defines.X_THRESHOLD_LOW and \
+             g_position[defines.axes.X.value] <= defines.X_THRESHOLD_HIGH:
                  g_state = defines.states.Calibrate
                  done = True
 
         # If there is enough force detected, assume penguin on scale and move to 
         # preweigh mode
-        elif g_caclulated_F[defines.forces.F] > defines.PENGUIN_WEIGHT_THRESHOLD:
-            g_state = defines.state.Preweigh
+        elif g_caclulated_F[defines.forces.F.value] > defines.PENGUIN_WEIGHT_THRESHOLD:
+            g_state = defines.states.Preweigh
             
             # No ternary operations in Python 3 :(
-            if g_position[defines.axes.X] < defines.X_THRESHOLD_LOW:
-                g_direction = defines.direction.to_nest
+            if g_position[defines.axes.X.value] < defines.X_THRESHOLD_LOW:
+                g_direction = defines.directions.to_nest
             else:
-                g_direction = defines.direction.to_sea
+                g_direction = defines.directions.to_sea
             
             done = True
 
@@ -194,10 +194,10 @@ def preweigh():
     done = False
 
     while not done:
-        if g_position[defines.axes.X] >= defines.X_THRESHOLD_LOW && \
-           g_position[defines.axes.X] <= defines.X_THRESHOLD_HIGH && \
-           g_position[defines.axes.Y] >= defines.Y_THRESHOLD_LOW && \
-           g_position[defines.axes.Y] <= defines.Y_THRESHOLD_HIGH:
+        if g_position[defines.axes.X.value] >= defines.X_THRESHOLD_LOW and \
+           g_position[defines.axes.X.value] <= defines.X_THRESHOLD_HIGH and \
+           g_position[defines.axes.Y.value] >= defines.Y_THRESHOLD_LOW and \
+           g_position[defines.axes.Y.value] <= defines.Y_THRESHOLD_HIGH:
                  g_state = defines.states.Weigh
                  done = True
 
@@ -226,15 +226,15 @@ def weigh():
 
     while not done:
         if g_direction == defines.directions.to_nest:
-            g_furthest_x = max(g_furthest_x, g_position[defines.axes.X])
+            g_furthest_x = max(g_furthest_x, g_position[defines.axes.X.value])
         elif g_direction == defines.directions.to_sea:
-            g_furthest_x = max(g_furthest_x, defines.MAX_AXIS_VALUE - g_position[defines.axes.X])
+            g_furthest_x = max(g_furthest_x, defines.MAX_AXIS_VALUE - g_position[defines.axes.X.value])
 
         if (g_calculated_F > defines.PENGUIN_WEIGHT_THRESHOLD):
             
-            if ((g_furthest_x - g_postion[defines.axes.X]) > defines.BACKUP_THRESHOLD && \
-               (g_direction == defines.directions.to_nest)) || \
-               ((g_furthest_x - (defines.MAX_AXIS_VALUE - g_postion[defines.axes.X])) > defines.BACKUP_THRESHOLD && \
+            if ((g_furthest_x - g_postion[defines.axes.X.value]) > defines.BACKUP_THRESHOLD and \
+               (g_direction == defines.directions.to_nest)) or \
+               ((g_furthest_x - (defines.MAX_AXIS_VALUE - g_postion[defines.axes.X.value])) > defines.BACKUP_THRESHOLD and \
                (g_direction == defines.directions.to_sea)):
                    g_state = defines.states.Calibrate
                    done = True
@@ -244,19 +244,19 @@ def weigh():
             done = True
 
         # Penguin walks far enough along the scale
-        elif g_position[defines.axes.X] > defines.X_THRESHOLD_HIGH:
+        elif g_position[defines.axes.X.value] > defines.X_THRESHOLD_HIGH:
             g_state = defines.states.Postweigh
             done = True
 
         # Penguin can't step too close to the sides of the scale
-        elif g_position[defines.axes.Y] < defines.Y_THRESHOLD_LOW || \
-             g_position[defines.axes.Y] > defines.Y_THRESHOLD_HIGH:
+        elif g_position[defines.axes.Y.value] < defines.Y_THRESHOLD_LOW or \
+             g_position[defines.axes.Y.value] > defines.Y_THRESHOLD_HIGH:
                  g_state = defines.states.Calibrate
                  done = True
         else:
             # Start weight calculation
-            g_weight_sum += g_calculated_F[defines.forces.F]
-            g_weight_num++
+            g_weight_sum += g_calculated_F[defines.forces.F.value]
+            g_weight_num+=1
 
         # if we haven't switched modes, sleep!
         if not done:
@@ -271,9 +271,9 @@ def postweigh():
     global g_weight_num
     global g_calculated_F
 
-    if g_calculated_F[defines.forces.F] < defines.PENGUIN_WEIGHT_THRESHOLD:
+    if g_calculated_F[defines.forces.F.value] < defines.PENGUIN_WEIGHT_THRESHOLD:
         
-        if g_weight_num >= defines.MIN_NUM_WEIGHS && \
+        if g_weight_num >= defines.MIN_NUM_WEIGHS and \
            (g_weight_sum/g_weight_num) > defines.PENGUIN_WEIGHT_THRESHOLD:
                process()
 
@@ -345,7 +345,7 @@ def sample_adc():
 
                 raw_load_cells[i] += f.readline().rstrip()
 
-            lpf_loops++
+            lpf_loops+=1
 
             if lpf_loops == defines.NUM_FILTER_LOOPS:
 
@@ -357,30 +357,30 @@ def sample_adc():
                     raw_load_cells[j] = 0
 
                 # Calculate forces (current)
-                g_calculated_F[defines.forces.F] = \
-                            g_load_cells[defines.load_cells.LC_X1Y1] + \
-                            g_load_cells[defines.load_cells.LC_X1Y2] + \
-                            g_load_cells[defines.load_cells.LC_X2Y1] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2] - \
+                g_calculated_F[defines.forces.F.value] = \
+                            g_load_cells[defines.cells.LC_X1Y1.value] + \
+                            g_load_cells[defines.cells.LC_X1Y2.value] + \
+                            g_load_cells[defines.cells.LC_X2Y1.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value] - \
                             g_calibrated_F[defines.forces.F]
 
                 # Find "force" along X - axis ( Legacy Logic )
-                g_calculated_F[defines.forces.Fx] = \
-                            g_load_cells[defines.load_cells.LC_X2Y1] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2] - \
-                            g_calibrated_F[defines.forces.Fx]
+                g_calculated_F[defines.forces.Fx.value] = \
+                            g_load_cells[defines.cells.LC_X2Y1.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value] - \
+                            g_calibrated_F[defines.forces.Fx.value]
 
                 # Find "force" along Y - axis ( Legacy Logic )
-                g_calculated_F[defines.forces.Fy] = \
-                            g_load_cells[defines.load_cells.LC_X1Y2] + \
-                            g_load_cells[defines.load_cells.LC_X2Y2] - \
-                            g_calibrated_F[defines.forces.Fy]
+                g_calculated_F[defines.forces.Fy.value] = \
+                            g_load_cells[defines.cells.LC_X1Y2.value] + \
+                            g_load_cells[defines.cells.LC_X2Y2.value] - \
+                            g_calibrated_F[defines.forces.Fy.value]
  
-                g_position[defines.axes.X] = (g_caclulated_F[defines.forces.Fx] /
-                                           (g_calculated_f[defines.forces.F] )
+                g_position[defines.axes.X.value] = (g_caclulated_F[defines.forces.Fx.value] /
+                                           (g_calculated_f[defines.forces.F.value] ))
 
-                g_position[defines.axes.Y] = (g_caclulated_F[defines.forces.Fy] /
-                                           (g_calculated_f[defines.forces.F] )
+                g_position[defines.axes.Y.value] = (g_caclulated_F[defines.forces.Fy.value] /
+                                           (g_calculated_f[defines.forces.F.value] ))
                 # Reset loop count
                 lpf_loops = 0
 
@@ -404,13 +404,13 @@ def run_algo():
         elif g_state == defines.states.Ready:
             ready()
             break
-        elif g_state == defines.state.Preweigh:
+        elif g_state == defines.states.Preweigh:
             preweigh()
             break
-        elif g_state == defines.state.Weigh:
+        elif g_state == defines.states.Weigh:
             weigh()
             break
-        elif g_state == defines.state.Postweigh:
+        elif g_state == defines.states.Postweigh:
             postweigh()
             break
 
